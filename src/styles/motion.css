@@ -1,0 +1,71 @@
+/* Links ---------------------------------------------------------------- */
+
+.link {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0% 0.07em;
+  transition:
+    background-size 0.3s cubic-bezier(0.2, 0.7, 0.2, 1),
+    color 0.2s ease;
+}
+
+.link:hover,
+.link:focus-visible {
+  color: var(--accent);
+  background-size: 100% 0.07em;
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0.2em;
+  border-radius: 2px;
+}
+
+/* No hover on touch screens, so mark links up front. */
+@media (hover: none) {
+  .link {
+    background-size: 100% 0.05em;
+  }
+}
+
+/* Entrance ---------------------------------------------------------------
+   Everything starts hidden; App.vue adds .is-ready once the font has loaded
+   and the brush starts painting. */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(0.45em);
+  transition:
+    opacity 0.9s ease,
+    transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: calc(0.45s + var(--i, 0) * 0.12s);
+}
+
+.reveal-art {
+  opacity: 0;
+  transform: translateX(7%);
+  transition:
+    opacity 1s ease,
+    transform 1.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-delay: 0.9s;
+}
+
+.is-ready .reveal,
+.is-ready .reveal-art {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-art {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .link {
+    transition: none;
+  }
+}

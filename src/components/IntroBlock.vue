@@ -31,7 +31,7 @@ import SocialLinks from './SocialLinks.vue'
   font-size: var(--fs-title);
   font-weight: 400;
   line-height: var(--lh-title, 1);
-  margin-bottom: calc(var(--fs-body) * 0.2);
+  margin-bottom: var(--title-gap, calc(var(--fs-body) * 0.2));
 }
 
 .intro__line {

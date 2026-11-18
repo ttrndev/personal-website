@@ -30,8 +30,9 @@
 }
 
 /* Entrance ---------------------------------------------------------------
-   Everything starts hidden; App.vue adds .is-ready once the font has loaded
-   and the brush starts painting. */
+   Text starts hidden and App.vue adds .is-ready once the font has loaded.
+   Senko additionally waits for her own picture (.is-loaded), so a slow
+   connection never makes her pop in half-way through the animation. */
 
 .reveal {
   opacity: 0;
@@ -52,15 +53,15 @@
 }
 
 .is-ready .reveal,
-.is-ready .reveal-art {
+.is-ready .reveal-art.is-loaded {
   opacity: 1;
   transform: none;
 }
 
+/* Reduced motion: still wait for the font / picture, but just appear. */
 @media (prefers-reduced-motion: reduce) {
   .reveal,
   .reveal-art {
-    opacity: 1;
     transform: none;
     transition: none;
   }

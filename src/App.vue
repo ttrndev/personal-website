@@ -8,14 +8,12 @@ import { useMediaQuery } from './composables/useMediaQuery'
 /** Portrait screens (phones, tablets held upright) and any narrow window get the mobile layout. */
 const isMobile = useMediaQuery('(orientation: portrait), (max-width: 640px)')
 
+/** The text fades in once the wide font is here, otherwise it would jump when the font swaps in. */
 const ready = ref(false)
 
 onMounted(async () => {
-  // Start the show once the wide font is in, otherwise the text would jump.
-  const fontLoaded = document.fonts
-    .load('1em "RF Dewi Expanded"')
-    .catch(() => undefined)
-  const timeout = new Promise((resolve) => setTimeout(resolve, 1500))
+  const fontLoaded = document.fonts.load('1em "RF Dewi Expanded"').catch(() => undefined)
+  const timeout = new Promise((resolve) => setTimeout(resolve, 3000))
   await Promise.race([fontLoaded, timeout])
   ready.value = true
 })
@@ -23,8 +21,9 @@ onMounted(async () => {
 
 <template>
   <div class="page" :class="{ 'is-ready': ready }">
-    <!-- Lives outside the layouts, so switching layout never restarts the stroke. -->
-    <BrushBackground :compact="isMobile" :play="ready" />
+    <!-- Lives outside the layouts, so switching layout never restarts the stroke.
+         It doesn't wait for the font: the brush starts painting right away. -->
+    <BrushBackground :compact="isMobile" />
 
     <MobileLayout v-if="isMobile" />
     <DesktopLayout v-else />

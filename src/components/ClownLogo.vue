@@ -13,10 +13,8 @@ import { site } from '../content'
 .clown {
   display: inline-block;
   height: 0.8em;
-  margin-left: 0.2em;
   vertical-align: -0.06em;
   border-radius: 0.1em;
-  transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
 
 .clown__img {
@@ -26,19 +24,8 @@ import { site } from '../content'
   image-rendering: pixelated;
 }
 
-.clown:hover,
-.clown:focus-visible {
-  transform: translateY(-0.1em) rotate(-8deg) scale(1.12);
-}
-
 .clown:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 0.2em;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .clown {
-    transition: none;
-  }
 }
 </style>

@@ -14,3 +14,9 @@ import { site } from '../content'
     </ul>
   </nav>
 </template>
+
+<style scoped>
+.socials__label {
+  color: var(--ink-muted);
+}
+</style>

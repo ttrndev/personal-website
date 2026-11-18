@@ -17,7 +17,9 @@ import { site } from '../content'
 <style scoped>
 .foot__contact {
   font-size: var(--fs-small);
-  line-height: 1.3;
+  line-height: 1.15;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
 }
 
 .foot__credit {

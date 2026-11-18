@@ -1,16 +1,17 @@
 import vertexSource from './brush.vert.glsl?raw'
 import fragmentSource from './brush.frag.glsl?raw'
-import { layoutPath, measurePathLength, type Genome, type PathLayout } from './genome'
+import { DAB_SIZE, generateDab } from './dab'
+import {
+  BRUSH,
+  dabCountFor,
+  layoutPath,
+  measurePathLength,
+  type Genome,
+  type PathLayout,
+} from './genome'
 
-/** Ribbon resolution. Smooth even for the long, sweeping curves. */
-const SEGMENTS = 640
 /** Stroke colour, sampled from the reference artwork (#49423a). */
 const INK: [number, number, number] = [73 / 255, 66 / 255, 58 / 255]
-/**
- * The brush tip is ragged and bristles run ahead of it, so the brush has to
- * travel this far past the end of the stroke before every pixel is painted.
- */
-const TIP_PAD = 380
 
 export interface BrushOptions {
   genome: Genome
@@ -20,15 +21,17 @@ export interface BrushOptions {
   reducedMotion?: boolean
 }
 
-function easeInOutCubic(k: number): number {
-  return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2
+function easeInOutQuad(k: number): number {
+  return k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k)
 }
 
 /**
- * Draws one procedurally generated brush stroke with WebGL2.
+ * Paints one procedurally generated brush stroke with WebGL2, by stamping a
+ * speckled dab hundreds of times along a generated curve.
  *
- * The animation only runs while the stroke is being drawn; once it finishes
- * (or on resize) a single frame is rendered and the GPU goes back to sleep.
+ * The canvas keeps its pixels between frames, so while the stroke is being
+ * drawn each frame only stamps the handful of dabs that are new. Once the
+ * stroke is complete nothing runs at all until the window is resized.
  */
 export class BrushRenderer {
   private readonly canvas: HTMLCanvasElement
@@ -39,17 +42,20 @@ export class BrushRenderer {
   private gl!: WebGL2RenderingContext
   private program: WebGLProgram | null = null
   private vao: WebGLVertexArrayObject | null = null
+  private dabTexture: WebGLTexture | null = null
   private uniforms: Record<string, WebGLUniformLocation | null> = {}
+  private readonly dabPixels: Uint8Array
 
   private cssWidth = 0
   private cssHeight = 0
-  private pixelRatio = 1
   private compact = false
   private layout: PathLayout | null = null
-  private length = 0
+  private dabCount = 0
 
-  /** -1 = nothing painted yet, 0 → 1 = brush travelling, 1 = finished. */
-  private progress = -1
+  /** How much of the stroke has been painted, 0 → 1. */
+  private progress = 0
+  /** Number of dabs already on the canvas. */
+  private stamped = 0
   private startAt = 0
   private raf = 0
   private contextLost = false
@@ -57,17 +63,21 @@ export class BrushRenderer {
   constructor(canvas: HTMLCanvasElement, options: BrushOptions) {
     this.canvas = canvas
     this.genome = options.genome
-    this.duration = options.duration ?? 3000
+    this.duration = options.duration ?? 2800
     this.reducedMotion = options.reducedMotion ?? false
 
     const gl = canvas.getContext('webgl2', {
       alpha: true,
       antialias: false,
       premultipliedAlpha: true,
+      preserveDrawingBuffer: true, // we draw incrementally, so keep what is there
       powerPreference: 'low-power',
     })
     if (!gl) throw new Error('WebGL2 is not available')
     this.gl = gl
+
+    // Generated once; kept around so a lost context can be rebuilt instantly.
+    this.dabPixels = generateDab(this.genome.seed)
 
     this.init()
     canvas.addEventListener('webglcontextlost', this.onContextLost)
@@ -79,25 +89,24 @@ export class BrushRenderer {
     if (compact === this.compact) return
     this.compact = compact
     this.updateLayout()
-    this.draw()
+    this.repaint()
   }
 
   /** Match the drawing buffer to the canvas' size on screen. */
   resize(cssWidth: number, cssHeight: number, pixelRatio: number): void {
     this.cssWidth = cssWidth
     this.cssHeight = cssHeight
-    this.pixelRatio = pixelRatio
     this.canvas.width = Math.max(1, Math.round(cssWidth * pixelRatio))
     this.canvas.height = Math.max(1, Math.round(cssHeight * pixelRatio))
     this.updateLayout()
-    this.draw() // resizing clears the canvas, so repaint immediately
+    this.repaint() // resizing clears the canvas, so stamp everything again
   }
 
   /** Start the draw-on animation. */
   play(delayMs = 0): void {
     if (this.reducedMotion) {
       this.progress = 1
-      this.draw()
+      this.catchUp()
       return
     }
     cancelAnimationFrame(this.raf)
@@ -113,6 +122,7 @@ export class BrushRenderer {
       const { gl } = this
       if (this.program) gl.deleteProgram(this.program)
       if (this.vao) gl.deleteVertexArray(this.vao)
+      if (this.dabTexture) gl.deleteTexture(this.dabTexture)
       gl.getExtension('WEBGL_lose_context')?.loseContext()
     }
   }
@@ -121,9 +131,29 @@ export class BrushRenderer {
 
   private readonly tick = (now: number): void => {
     const k = Math.min(1, Math.max(0, (now - this.startAt) / this.duration))
-    this.progress = easeInOutCubic(k)
-    this.draw()
+    this.progress = easeInOutQuad(k)
+    this.catchUp()
     this.raf = k < 1 ? requestAnimationFrame(this.tick) : 0
+  }
+
+  /** Stamp whichever dabs the animation has reached but the canvas doesn't have yet. */
+  private catchUp(): void {
+    const target = Math.floor(this.progress * this.dabCount + 1e-6)
+    if (target > this.stamped) {
+      this.stamp(this.stamped, target)
+      this.stamped = target
+    }
+  }
+
+  /** Throw the canvas away and redraw everything painted so far. */
+  private repaint(): void {
+    const { gl } = this
+    if (this.contextLost) return
+    this.stamped = Math.floor(this.progress * this.dabCount + 1e-6)
+    gl.viewport(0, 0, this.canvas.width, this.canvas.height)
+    gl.clearColor(0, 0, 0, 0)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    this.stamp(0, this.stamped)
   }
 
   private readonly onContextLost = (event: Event): void => {
@@ -135,14 +165,15 @@ export class BrushRenderer {
   private readonly onContextRestored = (): void => {
     this.contextLost = false
     this.init()
-    this.draw()
-    if (this.progress >= 0 && this.progress < 1) this.raf = requestAnimationFrame(this.tick)
+    this.repaint()
+    if (this.progress > 0 && this.progress < 1) this.raf = requestAnimationFrame(this.tick)
   }
 
   private updateLayout(): void {
     if (this.cssWidth === 0 || this.cssHeight === 0) return
     this.layout = layoutPath(this.cssWidth, this.cssHeight, this.compact)
-    this.length = measurePathLength(this.genome, this.layout)
+    const length = measurePathLength(this.genome, this.layout)
+    this.dabCount = dabCountFor(length, this.layout.scale)
   }
 
   private init(): void {
@@ -175,43 +206,53 @@ export class BrushRenderer {
     this.program = program
     this.uniforms = {}
     for (const name of [
-      'uView', 'uA', 'uB', 'uWave', 'uPress', 'uHalfW', 'uSegments',
-      'uInk', 'uSeed', 'uLen', 'uHead', 'uGrain',
+      'uView', 'uA', 'uB', 'uWave', 'uPress', 'uCount', 'uFirst',
+      'uRadius', 'uScatter', 'uJitter', 'uSeed', 'uDab', 'uInk',
     ]) {
       this.uniforms[name] = gl.getUniformLocation(program, name)
     }
 
-    // The geometry is generated from gl_VertexID, so there are no buffers, but
-    // WebGL2 still wants a (blank) vertex array object bound.
+    // The geometry is generated from gl_VertexID / gl_InstanceID, so there are
+    // no buffers, but WebGL2 still wants a (blank) vertex array object bound.
     this.vao = gl.createVertexArray()
+
+    // The dab. Plain linear filtering (no mipmaps): the shader thresholds the
+    // value, and blurring it would thin out the finest specks.
+    this.dabTexture = gl.createTexture()
+    gl.bindTexture(gl.TEXTURE_2D, this.dabTexture)
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, DAB_SIZE, DAB_SIZE, 0, gl.RED, gl.UNSIGNED_BYTE, this.dabPixels)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
   }
 
-  private draw(): void {
-    const { gl, layout, uniforms: u } = this
-    if (!layout || !this.program || this.contextLost) return
+  /** Stamp dabs `from` (inclusive) to `to` (exclusive). */
+  private stamp(from: number, to: number): void {
+    const { gl, layout, uniforms: u, genome } = this
+    if (!layout || !this.program || this.contextLost || to <= from) return
 
-    const { genome } = this
     gl.viewport(0, 0, this.canvas.width, this.canvas.height)
-    gl.clearColor(0, 0, 0, 0)
-    gl.clear(gl.COLOR_BUFFER_BIT)
-
     gl.useProgram(this.program)
     gl.bindVertexArray(this.vao)
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, this.dabTexture)
 
     gl.uniform2f(u.uView, this.cssWidth, this.cssHeight)
     gl.uniform2f(u.uA, layout.a[0], layout.a[1])
     gl.uniform2f(u.uB, layout.b[0], layout.b[1])
     gl.uniform3fv(u.uWave, genome.waves.flatMap((w) => [w.amp * layout.waveScale, w.freq, w.phase]))
     gl.uniform3fv(u.uPress, genome.pressure.flatMap((w) => [w.amp, w.freq, w.phase]))
-    gl.uniform1f(u.uHalfW, layout.halfWidth)
-    gl.uniform1f(u.uSegments, SEGMENTS)
-
-    gl.uniform3f(u.uInk, INK[0], INK[1], INK[2])
+    gl.uniform1f(u.uCount, this.dabCount)
+    gl.uniform1f(u.uFirst, from)
+    gl.uniform1f(u.uRadius, BRUSH.radius * layout.scale)
+    gl.uniform1f(u.uScatter, BRUSH.scatter * layout.scale)
+    gl.uniform1f(u.uJitter, BRUSH.sizeJitter)
     gl.uniform2f(u.uSeed, genome.noiseOffset[0], genome.noiseOffset[1])
-    gl.uniform1f(u.uLen, this.length)
-    gl.uniform1f(u.uHead, this.progress * (this.length + TIP_PAD))
-    gl.uniform1f(u.uGrain, Math.max(1, Math.floor(this.pixelRatio)))
+    gl.uniform1i(u.uDab, 0)
+    gl.uniform3f(u.uInk, INK[0], INK[1], INK[2])
 
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, (SEGMENTS + 1) * 2)
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, to - from)
   }
 }

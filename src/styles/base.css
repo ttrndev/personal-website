@@ -9,6 +9,8 @@
 :root {
   --bg: #1b1309;
   --ink: #ffffff;
+  --ink-muted: #c9c1b4; /* "Socials:" — a label, not a link */
+  --ink-faint: #aea69a; /* the contact line — there if you look for it */
   --accent: #f5b94a; /* the gold of Senko's fur */
   --font: 'RF Dewi Expanded', 'Helvetica Neue', Arial, sans-serif;
 

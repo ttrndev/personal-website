@@ -13,6 +13,15 @@
       content="Welcome to kitsune.here — timtaran, software developer."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Start the two big downloads right away instead of after the JS has run. -->
+    <link
+      rel="preload"
+      href="/src/assets/fonts/RFDewiExpanded-Regular.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
+    <link rel="preload" href="/src/assets/senko.svg" as="image" type="image/svg+xml" />
     <title>kitsune.here</title>
     <style>
       /* Painted before the JS bundle arrives so there is no white flash. */

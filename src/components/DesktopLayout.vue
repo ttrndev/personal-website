@@ -24,10 +24,12 @@ import SenkoArt from './SenkoArt.vue'
 .desk {
   --u: min(1vw, 1.7778vh);
   --u: min(1vw, 1.7778dvh);
-  --fs-title: calc(var(--u) * 3.44);
-  --fs-body: max(11px, calc(var(--u) * 1.72));
-  --fs-small: max(9px, calc(var(--u) * 0.86));
-  --lh: 1.15;
+  /* Measured against the reference (type sizes, line pitch and the gap under the title). */
+  --fs-title: calc(var(--u) * 3.36);
+  --fs-body: max(11px, calc(var(--u) * 1.675));
+  --fs-small: max(9px, calc(var(--u) * 0.83));
+  --lh: 1.18;
+  --title-gap: calc(var(--u) * 1.25);
 
   position: relative;
   z-index: 1;
@@ -38,8 +40,8 @@ import SenkoArt from './SenkoArt.vue'
 
 .desk__intro {
   position: absolute;
-  top: calc(var(--u) * 2.2);
-  left: calc(var(--u) * 2.8);
+  top: calc(var(--u) * 2.47);
+  left: calc(var(--u) * 2.72);
 }
 
 .desk__senko {
@@ -52,7 +54,7 @@ import SenkoArt from './SenkoArt.vue'
 
 .desk__footer {
   position: absolute;
-  left: calc(var(--u) * 2.8);
-  bottom: calc(var(--u) * 1.5);
+  left: calc(var(--u) * 2.72);
+  bottom: calc(var(--u) * 1.4);
 }
 </style>

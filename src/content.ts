@@ -4,13 +4,12 @@
  */
 export const site = {
   title: 'Welcome to kitsune.here',
-  lead: ['My name is timtaran and I am software developer', 'You can find more on'],
+  lead: ['My name is timtaran and this is my website', 'You can find more about me on'],
 
   /** The clown logo next to the lead text links here. */
   home: 'https://timtaran.clwn.org',
 
   socialsLabel: 'Socials:',
-  // TODO: confirm these two URLs — they are guesses based on the handle.
   socials: [
     { label: 'GitHub', href: 'https://github.com/timtaran' },
     { label: 'YouTube', href: 'https://www.youtube.com/@timtaran' },
@@ -22,7 +21,6 @@ export const site = {
   artwork: {
     prefix: 'Artwork by',
     name: 'curxvoid',
-    // TODO: confirm where the artist's profile lives — this URL is a guess.
     href: 'https://x.com/curxvoid',
   },
 } as const

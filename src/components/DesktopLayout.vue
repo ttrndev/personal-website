@@ -9,6 +9,12 @@ import SenkoArt from './SenkoArt.vue'
   viewport: --u is 1/100 of the largest 16:9 stage that fits the screen, and
   every size below is a multiple of it. Text hugs the left edge, Senko is glued
   to the bottom-right corner, whatever the aspect ratio.
+
+  This layout is also used by phones held sideways, so it follows the same
+  rule as MobileLayout: sizes come from the *small* viewport height (which
+  doesn't change while the browser's toolbar slides away) and the bottom items
+  are `position: fixed`, so the browser moves them smoothly instead of the page
+  re-laying out on every frame.
 -->
 <template>
   <div class="desk">
@@ -22,8 +28,8 @@ import SenkoArt from './SenkoArt.vue'
 
 <style scoped>
 .desk {
+  --sh: 100vh; /* the viewport height with the toolbars showing; stays put */
   --u: min(1vw, 1.7778vh);
-  --u: min(1vw, 1.7778dvh);
   /* Measured against the reference (type sizes, line pitch and the gap under the title). */
   --fs-title: calc(var(--u) * 3.36);
   --fs-body: max(11px, calc(var(--u) * 1.675));
@@ -33,9 +39,15 @@ import SenkoArt from './SenkoArt.vue'
 
   position: relative;
   z-index: 1;
-  height: 100vh;
-  height: 100dvh;
+  height: var(--sh);
   overflow: hidden;
+}
+
+@supports (height: 100svh) {
+  .desk {
+    --sh: 100svh;
+    --u: min(1vw, 1.7778svh);
+  }
 }
 
 .desk__intro {
@@ -45,7 +57,7 @@ import SenkoArt from './SenkoArt.vue'
 }
 
 .desk__senko {
-  position: absolute;
+  position: fixed;
   right: 0;
   bottom: 0;
   height: calc(var(--u) * 43.65);
@@ -53,7 +65,7 @@ import SenkoArt from './SenkoArt.vue'
 }
 
 .desk__footer {
-  position: absolute;
+  position: fixed;
   left: calc(var(--u) * 2.72);
   bottom: calc(var(--u) * 1.4);
 }

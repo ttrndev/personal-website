@@ -4,7 +4,7 @@
  */
 export const site = {
   title: 'Welcome to kitsune.here',
-  lead: ['My name is timtaran and this is my website', 'You can find more about me on'],
+  lead: ['My name is timtaran and I am software developer', 'You can find more about me on', ''],
 
   /** The clown logo next to the lead text links here. */
   home: 'https://timtaran.clwn.org',

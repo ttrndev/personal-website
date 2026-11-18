@@ -12,7 +12,7 @@ import SocialLinks from './SocialLinks.vue'
   <div class="intro">
     <h1 class="intro__title reveal" style="--i: 0">{{ site.title }}</h1>
 
-    <p class="intro__lead" style="--i: 1">
+    <p class="intro__lead reveal" style="--i: 1">
       <span class="intro__line">{{ site.lead[0] }}</span>
       <span class="intro__line">{{ site.lead[1] }} <ClownLogo /></span>
       <span class="intro__line intro__line__hidden">{{ site.lead[2] }}</span>
